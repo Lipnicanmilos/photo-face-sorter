@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -41,6 +42,32 @@ class Settings(BaseSettings):
     CACHE_DIR: Path = Field(
         default=BASE_DIR / "cache" / "faces",
         description="Adresár pre orezané náhľady detegovaných tvárí.",
+    )
+    DB_PATH: Path = Field(
+        default=BASE_DIR / "cache" / "photo_face_sorter.sqlite3",
+        description="SQLite databáza so spracovanými fotkami, tvárami a osobami.",
+    )
+
+    # --- Triedenie do priečinkov ------------------------------------------
+    OUTPUT_DIR: Path = Field(
+        default=BASE_DIR / "output",
+        description="Cieľový adresár, do ktorého sa fotky roztriedia podľa osôb.",
+    )
+    LINK_MODE: Literal["hardlink", "copy", "symlink"] = Field(
+        default="hardlink",
+        description=(
+            "Ako sa fotky dostanú do výstupu: 'hardlink' (nezaberá miesto navyše, "
+            "vyžaduje rovnaký disk), 'copy' (plná kópia) alebo 'symlink' "
+            "(na Windows môže vyžadovať vývojársky režim)."
+        ),
+    )
+    UNASSIGNED_DIR_NAME: str = Field(
+        default="_nezaradene",
+        description="Priečinok pre fotky, ktorých tváre sa nepodarilo priradiť k osobe.",
+    )
+    NO_FACES_DIR_NAME: str = Field(
+        default="_bez_tvari",
+        description="Priečinok pre fotky, na ktorých sa nenašla žiadna tvár.",
     )
 
     # --- InsightFace -------------------------------------------------------
@@ -96,7 +123,7 @@ class Settings(BaseSettings):
         description="Kvalita JPEG kompresie pre náhľady tvárí.",
     )
 
-    @field_validator("CACHE_DIR", "INSIGHTFACE_ROOT", mode="after")
+    @field_validator("CACHE_DIR", "INSIGHTFACE_ROOT", "DB_PATH", "OUTPUT_DIR", mode="after")
     @classmethod
     def _resolve_path(cls, value: Path) -> Path:
         """Rozvinie '~', relatívne cesty vyhodnotí voči koreňu projektu a normalizuje ich."""
@@ -109,6 +136,7 @@ class Settings(BaseSettings):
         """Vytvorí potrebné adresáre, ak ešte neexistujú."""
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
         self.INSIGHTFACE_ROOT.mkdir(parents=True, exist_ok=True)
+        self.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 @lru_cache(maxsize=1)

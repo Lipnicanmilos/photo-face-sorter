@@ -7,7 +7,6 @@ from collections import OrderedDict
 from collections.abc import Sequence
 
 import numpy as np
-from sklearn.cluster import DBSCAN
 
 from app.config import Settings, get_settings
 from app.schemas import (
@@ -86,6 +85,8 @@ class FaceClusterer:
         Returns:
             Pole tvaru `(n_faces,)` s označeniami; `-1` znamená šum (nepriradené).
         """
+        from sklearn.cluster import DBSCAN  # lokálny import - ~4 s pri štarte
+
         matrix = np.asarray(embeddings, dtype=np.float32)
         if matrix.ndim != 2 or matrix.shape[1] != EMBEDDING_DIM:
             raise ValueError(

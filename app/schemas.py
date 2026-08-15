@@ -111,3 +111,80 @@ class ClusteringResult(BaseModel):
     def num_unassigned(self) -> int:
         cluster = self.unassigned_cluster
         return cluster.size if cluster is not None else 0
+
+
+class PhotoRecord(BaseModel):
+    """Riadok tabuľky `photos` - už spracovaná fotografia."""
+
+    id: int
+    path: str
+    content_hash: str
+    file_size: int
+    num_faces: int
+    processed_at: str
+
+
+class PersonRecord(BaseModel):
+    """Riadok tabuľky `persons` - osoba vzniknutá zhlukovaním."""
+
+    id: int
+    label: str = Field(description="Systémový názov zhluku, napr. 'person_1'.")
+    display_name: str | None = Field(default=None, description="Ručne zadané meno osoby.")
+    representative_face_id: str | None = None
+    face_count: int = 0
+    updated_at: str
+
+    @property
+    def folder_name(self) -> str:
+        """Názov priečinka pri triedení - uprednostní ručne zadané meno."""
+        return self.display_name or self.label
+
+
+class StorageStats(BaseModel):
+    """Prehľad obsahu databázy."""
+
+    photos: int = 0
+    photos_without_faces: int = 0
+    faces: int = 0
+    assigned_faces: int = 0
+    persons: int = 0
+    db_path: str = ""
+    db_size_bytes: int = 0
+
+    @property
+    def unassigned_faces(self) -> int:
+        return self.faces - self.assigned_faces
+
+
+class ScanReport(BaseModel):
+    """Výsledok prehľadania priečinka s fotografiami."""
+
+    total_images: int = 0
+    processed: int = 0
+    skipped_cached: int = 0
+    new_faces: int = 0
+    failures: list[tuple[str, str]] = Field(default_factory=list)
+    elapsed_seconds: float = 0.0
+
+
+class OrganizeReport(BaseModel):
+    """Výsledok roztriedenia fotiek do priečinkov."""
+
+    output_dir: str = ""
+    mode: str = "hardlink"
+    dry_run: bool = False
+    folders: dict[str, int] = Field(
+        default_factory=dict,
+        description="Názov priečinka -> počet fotiek, ktoré doň patria.",
+    )
+    linked: int = Field(default=0, description="Počet vytvorených položiek vo výstupe.")
+    skipped_existing: int = Field(default=0, description="Cieľ už existoval a sedel.")
+    fallback_copies: int = Field(
+        default=0,
+        description="Koľkokrát sa hardlink/symlink nepodaril a použila sa kópia.",
+    )
+    errors: list[tuple[str, str]] = Field(default_factory=list)
+
+    @property
+    def total_photos(self) -> int:
+        return sum(self.folders.values())

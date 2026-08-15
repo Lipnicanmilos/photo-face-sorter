@@ -10,3 +10,4 @@ models/
 .ruff_cache/
 .idea/
 .vscode/
+output/

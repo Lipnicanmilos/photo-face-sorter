@@ -17,19 +17,10 @@ from collections import Counter
 from pathlib import Path
 
 from app.config import get_settings
+from app.console import LINE_WIDTH, configure_console, header
 from app.schemas import ClusteringResult, DetectedFace
 from app.services.clusterer import FaceClusterer
 from app.services.detector import FaceDetector
-
-LINE_WIDTH: int = 72
-
-
-def configure_console() -> None:
-    """Prepne výstup na UTF-8, aby diakritika neskončila na cp1252 chybe (Windows)."""
-    for stream in (sys.stdout, sys.stderr):
-        reconfigure = getattr(stream, "reconfigure", None)
-        if reconfigure is not None:
-            reconfigure(encoding="utf-8", errors="replace")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -61,13 +52,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Podrobné logovanie (DEBUG).",
     )
     return parser.parse_args(argv)
-
-
-def header(title: str) -> None:
-    print()
-    print("=" * LINE_WIDTH)
-    print(title)
-    print("=" * LINE_WIDTH)
 
 
 def print_detection_stats(
