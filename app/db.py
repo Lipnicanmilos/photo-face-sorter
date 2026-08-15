@@ -23,6 +23,7 @@ from app.schemas import (
     BoundingBox,
     ClusteringResult,
     DetectedFace,
+    FaceSummary,
     PersonRecord,
     PhotoRecord,
     StorageStats,
@@ -311,6 +312,80 @@ class Database:
                 (display_name, _now(), label),
             )
         return cursor.rowcount > 0
+
+    def get_person(self, label: str) -> PersonRecord | None:
+        """Nájde osobu podľa systémového názvu (`person_1`)."""
+        row = self._connection.execute(
+            "SELECT id, label, display_name, representative_face_id, face_count, updated_at "
+            "FROM persons WHERE label = ?",
+            (label,),
+        ).fetchone()
+        return PersonRecord(**dict(row)) if row is not None else None
+
+    def person_photo_counts(self) -> dict[int, int]:
+        """Mapovanie `person.id` -> počet unikátnych fotiek s touto osobou."""
+        return {
+            int(row["person_id"]): int(row["photos"])
+            for row in self._connection.execute(
+                "SELECT person_id, COUNT(DISTINCT photo_id) AS photos FROM faces "
+                "WHERE person_id IS NOT NULL GROUP BY person_id"
+            )
+        }
+
+    def faces_of_person(self, label: str) -> list[FaceSummary]:
+        """Tváre patriace osobe, zoradené od najistejšej detekcie."""
+        rows = self._connection.execute(
+            "SELECT f.face_id, f.preview_path, f.det_score, p.path AS source_path "
+            "FROM faces f JOIN photos p ON p.id = f.photo_id "
+            "JOIN persons pe ON pe.id = f.person_id "
+            "WHERE pe.label = ? ORDER BY f.det_score DESC",
+            (label,),
+        ).fetchall()
+        return [self._row_to_summary(row, label) for row in rows]
+
+    def unassigned_faces(self) -> list[FaceSummary]:
+        """Tváre, ktoré zhlukovanie nepriradilo k žiadnej osobe."""
+        rows = self._connection.execute(
+            "SELECT f.face_id, f.preview_path, f.det_score, p.path AS source_path "
+            "FROM faces f JOIN photos p ON p.id = f.photo_id "
+            "WHERE f.person_id IS NULL ORDER BY f.det_score DESC"
+        ).fetchall()
+        return [self._row_to_summary(row, None) for row in rows]
+
+    @staticmethod
+    def _row_to_summary(row: sqlite3.Row, label: str | None) -> FaceSummary:
+        return FaceSummary(
+            face_id=row["face_id"],
+            preview_file=Path(row["preview_path"]).name,
+            source_path=row["source_path"],
+            det_score=row["det_score"],
+            person_label=label,
+        )
+
+    def merge_persons(self, source_label: str, target_label: str) -> bool:
+        """Presunie všetky tváre zo `source` do `target` a zdrojovú osobu zmaže.
+
+        Pozor: ďalšie spustenie zhlukovania počíta osoby odznova, takže ručné
+        zlúčenie prežije len meno cieľovej osoby, nie samotné spojenie zhlukov.
+        """
+        source = self.get_person(source_label)
+        target = self.get_person(target_label)
+        if source is None or target is None or source.id == target.id:
+            return False
+
+        with self.transaction() as conn:
+            conn.execute(
+                "UPDATE faces SET person_id = ? WHERE person_id = ?", (target.id, source.id)
+            )
+            conn.execute("DELETE FROM persons WHERE id = ?", (source.id,))
+            conn.execute(
+                "UPDATE persons SET face_count = ("
+                "  SELECT COUNT(*) FROM faces WHERE person_id = ?"
+                "), updated_at = ? WHERE id = ?",
+                (target.id, _now(), target.id),
+            )
+        logger.info("Osoba %s zlúčená do %s.", source_label, target_label)
+        return True
 
     def photo_paths_by_person(self) -> dict[int, list[str]]:
         """Mapovanie `person.id` -> unikátne cesty fotiek, na ktorých osoba je."""

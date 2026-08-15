@@ -46,6 +46,19 @@ V `models/buffalo_l/` má byť 5 `.onnx` súborov (`det_10g`, `w600k_r50`, `2d10
 
 ## Použitie
 
+### Webové rozhranie (odporúčané)
+
+```bash
+python -m app.cli serve
+```
+
+Otvorí sa `http://localhost:8000` so štyrmi krokmi na jednej stránke: zadaj priečinok
+a spusti sken (s priebehom), prepočítaj osoby, prezri si nájdených ľudí podľa náhľadov
+tvárí a roztrieď fotky. Osobu premenuješ kliknutím na jej meno, zlúčiš cez rozbaľovacie
+menu na karte a kliknutím na náhľad si zobrazíš všetky jej tváre — a z nich pôvodné fotky.
+
+### Príkazový riadok
+
 Všetko naraz — detekcia, zhlukovanie aj roztriedenie:
 
 ```bash
@@ -165,7 +178,14 @@ Nastavenia sa načítajú z prostredia alebo zo súboru `.env` (vzor v `.env.exa
 
 ```
 app/
-  cli.py                 # príkazový riadok (scan/cluster/sort/run/persons/…)
+  api/
+    main.py              # FastAPI: REST endpointy + servírovanie UI
+    jobs.py              # beh skenu na pozadí s hlásením priebehu
+  web/
+    index.html           # webové UI (bez build kroku)
+    style.css
+    app.js
+  cli.py                 # príkazový riadok (serve/scan/cluster/sort/run/persons/…)
   pipeline.py            # PhotoSorterPipeline — spája detekciu, DB, clustering, triedenie
   db.py                  # SQLite: photos / faces / persons
   config.py              # Pydantic Settings (.env)
@@ -190,7 +210,24 @@ test_ml_pipeline.py      # samostatný test ML častí bez databázy
 
 ## Tech stack
 
-Python 3.11+ · InsightFace (ArcFace `buffalo_l`) · ONNX Runtime · scikit-learn · Pillow · Pydantic v2
+Python 3.11+ · InsightFace (ArcFace `buffalo_l`) · ONNX Runtime · scikit-learn · SQLite ·
+FastAPI + uvicorn · Pillow · Pydantic v2 · vanilla JS (bez build kroku)
+
+### REST API
+
+Interaktívna dokumentácia beží na `/docs` (Swagger).
+
+| Endpoint | Popis |
+|---|---|
+| `GET /api/stats` | Obsah databázy a predvolené nastavenia. |
+| `POST /api/scan` | Spustí detekciu na pozadí, vráti `job_id`. |
+| `GET /api/jobs/{id}` | Priebeh úlohy. |
+| `POST /api/cluster` | Prepočíta osoby (`eps`, `min_samples`). |
+| `GET /api/persons` | Osoby s náhľadmi a počtami. |
+| `GET /api/persons/{label}/faces` | Tváre osoby (`_unassigned` = nepriradené). |
+| `PATCH /api/persons/{label}` | Premenuje osobu. |
+| `POST /api/persons/merge` | Zlúči dve osoby. |
+| `POST /api/sort` | Roztriedi fotky do priečinkov. |
 
 ## Licencia
 

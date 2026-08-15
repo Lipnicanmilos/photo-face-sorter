@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import threading
 from pathlib import Path
 
 from app.config import get_settings
@@ -179,6 +180,33 @@ def cmd_stats(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+    except ImportError:
+        print(
+            "Chýba webová časť. Doinštaluj ju: pip install fastapi uvicorn",
+            file=sys.stderr,
+        )
+        return 2
+
+    url = f"http://{'localhost' if args.host == '0.0.0.0' else args.host}:{args.port}"
+    print(f"Webové rozhranie beží na {url}  (ukončíš cez Ctrl+C)")
+    if not args.no_browser:
+        import webbrowser
+
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+
+    uvicorn.run(
+        "app.api.main:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        log_level="debug" if args.verbose else "warning",
+    )
+    return 0
+
+
 def cmd_reset(args: argparse.Namespace) -> int:
     if not args.yes:
         print("Zmaže obsah databázy. Potvrď prepínačom --yes.", file=sys.stderr)
@@ -255,6 +283,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     stats = subparsers.add_parser("stats", help="Obsah databázy.")
     stats.set_defaults(func=cmd_stats)
+
+    serve = subparsers.add_parser("serve", help="Spustí webové rozhranie.")
+    serve.add_argument("--host", default="127.0.0.1", help="Adresa (default 127.0.0.1).")
+    serve.add_argument("--port", type=int, default=8000, help="Port (default 8000).")
+    serve.add_argument("--reload", action="store_true", help="Automatický reload pri zmene kódu.")
+    serve.add_argument("--no-browser", action="store_true", help="Neotvárať prehliadač.")
+    serve.set_defaults(func=cmd_serve)
 
     reset = subparsers.add_parser("reset", help="Vyprázdni databázu.")
     reset.add_argument("--yes", action="store_true", help="Potvrdenie.")

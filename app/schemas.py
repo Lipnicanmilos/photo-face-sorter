@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 EMBEDDING_DIM: int = 512
 """Dimenzia ArcFace embeddingu produkovaného modelom buffalo_l."""
@@ -140,6 +140,16 @@ class PersonRecord(BaseModel):
         return self.display_name or self.label
 
 
+class FaceSummary(BaseModel):
+    """Odľahčený pohľad na tvár pre UI - bez embeddingu."""
+
+    face_id: str
+    preview_file: str = Field(description="Názov súboru náhľadu v CACHE_DIR.")
+    source_path: str
+    det_score: float
+    person_label: str | None = None
+
+
 class StorageStats(BaseModel):
     """Prehľad obsahu databázy."""
 
@@ -185,6 +195,8 @@ class OrganizeReport(BaseModel):
     )
     errors: list[tuple[str, str]] = Field(default_factory=list)
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def total_photos(self) -> int:
+        """Súčet naprieč priečinkami; `computed_field` ho dostane aj do JSON pre API."""
         return sum(self.folders.values())

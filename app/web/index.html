@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Photo Face Sorter</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🙂</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Photo&nbsp;Face&nbsp;Sorter</h1>
+    <div class="chips" id="stats-chips"></div>
+  </header>
+
+  <main>
+    <!-- 1 ------------------------------------------------------------- -->
+    <section class="card">
+      <h2><span class="step">1</span> Načítanie fotiek</h2>
+      <div class="row">
+        <label class="grow">
+          Priečinok s fotografiami
+          <input type="text" id="scan-folder" placeholder="C:\Users\lipni\Pictures\dovolenka" spellcheck="false">
+        </label>
+        <button id="scan-btn" class="primary">Skenovať</button>
+      </div>
+      <div class="row options">
+        <label class="check"><input type="checkbox" id="scan-recursive" checked> vrátane podpriečinkov</label>
+        <label class="check"><input type="checkbox" id="scan-force"> spracovať aj známe fotky</label>
+      </div>
+      <div id="scan-progress" class="progress hidden">
+        <div class="bar"><div class="fill" id="progress-fill"></div></div>
+        <div class="progress-text" id="progress-text"></div>
+      </div>
+      <p class="hint">Prvá fotka trvá dlhšie — načítava sa model. Už spracované fotky sa preskočia.</p>
+    </section>
+
+    <!-- 2 ------------------------------------------------------------- -->
+    <section class="card">
+      <h2><span class="step">2</span> Rozpoznanie osôb</h2>
+      <div class="row">
+        <label>
+          Citlivosť (eps)
+          <input type="number" id="cluster-eps" step="0.01" min="0.05" max="2">
+        </label>
+        <label>
+          Min. tvárí na osobu
+          <input type="number" id="cluster-min-samples" step="1" min="1">
+        </label>
+        <button id="cluster-btn" class="primary">Prepočítať osoby</button>
+      </div>
+      <p class="hint">
+        Osoba sa rozpadla na viacero? Zvýš eps. Splynuli dvaja ľudia? Zníž ho.
+        Prepočet nič nedetekuje znova, môžeš ho púšťať koľkokrát chceš.
+      </p>
+    </section>
+
+    <!-- 3 ------------------------------------------------------------- -->
+    <section class="card">
+      <div class="section-head">
+        <h2><span class="step">3</span> Osoby</h2>
+        <button id="refresh-persons" class="ghost">Obnoviť</button>
+      </div>
+      <div id="persons-grid" class="grid"></div>
+      <p id="persons-empty" class="hint">Zatiaľ žiadne osoby — najprv naskenuj fotky a prepočítaj osoby.</p>
+    </section>
+
+    <!-- 4 ------------------------------------------------------------- -->
+    <section class="card">
+      <h2><span class="step">4</span> Roztriedenie do priečinkov</h2>
+      <div class="row">
+        <label class="grow">
+          Cieľový priečinok
+          <input type="text" id="sort-output" spellcheck="false">
+        </label>
+        <label>
+          Režim
+          <select id="sort-mode">
+            <option value="hardlink">hardlink (šetrí miesto)</option>
+            <option value="copy">kópia</option>
+            <option value="symlink">symlink</option>
+          </select>
+        </label>
+      </div>
+      <div class="row options">
+        <label class="check"><input type="checkbox" id="sort-clean"> zmazať predošlý výstup</label>
+        <button id="sort-preview" class="ghost">Ukázať plán</button>
+        <button id="sort-btn" class="primary">Roztriediť</button>
+      </div>
+      <div id="sort-result"></div>
+      <p class="hint">
+        Originály sa nepresúvajú ani nemenia. Do priečinka s cudzím obsahom sa nič nezapíše.
+      </p>
+    </section>
+  </main>
+
+  <!-- galéria tvárí jednej osoby -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="modal-title"></h3>
+        <button id="modal-close" class="ghost">Zavrieť</button>
+      </div>
+      <div id="modal-faces" class="faces"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
