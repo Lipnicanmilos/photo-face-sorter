@@ -126,4 +126,4 @@ Python 3.11+ · InsightFace (ArcFace `buffalo_l`) · ONNX Runtime · scikit-lear
 
 ## Licencia
 
-MIT
+MIT — detaily v súbore [LICENSE](LICENSE).
